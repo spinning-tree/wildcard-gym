@@ -3,114 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wildcard GYM</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>Wildcard Lab Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        body { font-family: 'JetBrains Mono', monospace; }
+        .animate-pop { animation: pop 0.3s ease-out; }
+        @keyframes pop { 0% { transform: scale(0.95); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
 </head>
-<body class="bg-slate-950">
-    <div id="root"></div>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
 
-    <script type="text/babel">
-        const { useState, useEffect, useCallback } = React;
+    <div class="w-full max-w-2xl bg-slate-900 rounded-[2.5rem] border border-slate-800 p-8 shadow-2xl relative overflow-hidden">
+        <div class="flex flex-wrap items-center justify-between mb-8 gap-4 relative z-10">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-indigo-600 rounded-xl shadow-lg">
+                    <i data-lucide="network" class="text-white w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-black leading-none">Wildcard Pro</h1>
+                    <p class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Vainilla Engine v2</p>
+                </div>
+            </div>
+            <div class="flex gap-6">
+                <div class="text-center">
+                    <p class="text-[10px] text-slate-500 uppercase font-black">Score</p>
+                    <p id="score" class="text-xl font-bold text-indigo-400">0</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-[10px] text-slate-500 uppercase font-black">Racha</p>
+                    <p id="streak" class="text-xl font-bold text-orange-500">0🔥</p>
+                </div>
+            </div>
+        </div>
 
-        // Mock de iconos para evitar errores de importación en navegador
-        const Icon = ({ name, size = 24, className = "" }) => {
-            useEffect(() => { lucide.createIcons(); }, []);
-            return <i data-lucide={name} style={{width: size, height: size}} className={className}></i>;
-        };
+        <div class="relative z-10">
+            <div class="mb-6">
+                <span id="tag" class="bg-indigo-500/10 text-indigo-400 text-[10px] font-black px-3 py-1.5 rounded-xl border border-indigo-500/20 uppercase tracking-wider"></span>
+            </div>
 
-        const App = () => {
-            const [currentQuestion, setCurrentQuestion] = useState(null);
-            const [userInput, setUserInput] = useState('');
-            const [feedback, setFeedback] = useState(null);
-            const [score, setScore] = useState(0);
-            const [streak, setStreak] = useState(0);
+            <h2 id="description" class="text-2xl md:text-3xl font-bold mb-8 leading-tight text-white min-h-[80px]"></h2>
 
-            const getRandomOctet = () => Math.floor(Math.random() * 256);
-            const cidrToMask = (cidr) => {
-                let mask = [];
-                for (let i = 0; i < 4; i++) {
-                    let n = Math.min(cidr, 8);
-                    mask.push(256 - Math.pow(2, 8 - n));
-                    cidr -= n;
-                }
-                return mask.join('.');
-            };
-            const maskToWildcard = (mask) => mask.split('.').map(octet => 255 - parseInt(octet)).join('.');
+            <div class="space-y-6">
+                <div class="relative">
+                    <input type="text" id="userInput" placeholder="0.0.0.0" 
+                        class="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl p-6 font-mono text-2xl text-indigo-400 focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-800 shadow-2xl">
+                </div>
 
-            const generateQuestion = useCallback(() => {
-                const types = ['conversion', 'subnet_match', 'variable_octet', 'full_command'];
-                const type = types[Math.floor(Math.random() * types.length)];
-                const cidrs = [8, 12, 16, 20, 24, 26, 28, 30];
-                const cidr = cidrs[Math.floor(Math.random() * cidrs.length)];
-                const mask = cidrToMask(cidr);
-                const wildcard = maskToWildcard(mask);
-                const ip = `${getRandomOctet()}.${getRandomOctet()}.${getRandomOctet()}.0`;
+                <button id="actionBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-5 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-3 text-lg">
+                    <i data-lucide="target" class="w-6 h-6"></i> Validar Configuración
+                </button>
 
-                switch (type) {
-                    case 'conversion':
-                        return { title: 'Conversión', description: `Máscara: ${mask}. ¿Wildcard?`, correct: wildcard, explanation: `255.255.255.255 - ${mask}` };
-                    case 'subnet_match':
-                        return { title: 'Subred', description: `Habilita la red ${ip}/${cidr}. Solo wildcard:`, correct: wildcard, explanation: `Cero en bits de red, uno en bits de host.` };
-                    case 'variable_octet':
-                        return { title: 'Host', description: `Activa solo la IP ${ip.replace('.0', '.5')}. ¿Wildcard?`, correct: '0.0.0.0', explanation: `Match exacto = 0.0.0.0` };
-                    default:
-                        return { title: 'Comando', description: `Comando completo para ${ip} /24:`, correct: `network ${ip} 0.0.0.255`, explanation: `network [IP] [Wildcard]` };
-                }
-            }, []);
-
-            useEffect(() => { setCurrentQuestion(generateQuestion()); }, [generateQuestion]);
-
-            const handleSubmit = (e) => {
-                e.preventDefault();
-                if (userInput.trim().toLowerCase() === currentQuestion.correct.toLowerCase()) {
-                    setFeedback('correct'); setScore(s => s + 1); setStreak(s => s + 1);
-                } else {
-                    setFeedback('incorrect'); setStreak(0);
-                }
-            };
-
-            if (!currentQuestion) return null;
-
-            return (
-                <div className="min-h-screen flex items-center justify-center p-4">
-                    <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 w-full max-w-lg shadow-2xl">
-                        <div className="flex justify-between mb-6">
-                            <span className="text-indigo-400 font-bold uppercase text-xs tracking-widest">{currentQuestion.title}</span>
-                            <span className="text-slate-500 font-mono text-xs">Puntos: {score} | Racha: {streak}🔥</span>
+                <div id="feedbackBox" class="hidden animate-pop space-y-4">
+                    <div id="feedbackTheme" class="p-6 rounded-3xl border-2">
+                        <p class="font-black uppercase tracking-widest text-xs mb-2 flex items-center gap-2">
+                            <i id="feedbackIcon" class="w-4 h-4"></i> Análisis Técnico
+                        </p>
+                        <p id="explanation" class="text-slate-300 text-sm leading-relaxed mb-4"></p>
+                        <div id="correctContainer" class="bg-slate-950/50 p-4 rounded-xl border hidden">
+                            <span class="text-[10px] text-slate-500 block mb-1 uppercase font-bold">Esperado:</span>
+                            <code id="correctValue" class="text-red-400 font-bold text-lg"></code>
                         </div>
-                        <h2 className="text-white text-2xl font-bold mb-6">{currentQuestion.description}</h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <input 
-                                type="text" 
-                                value={userInput}
-                                onChange={(e) => setUserInput(e.target.value)}
-                                disabled={feedback !== null}
-                                className="w-full bg-slate-950 border-2 border-slate-800 rounded-xl p-4 font-mono text-indigo-400 focus:outline-none focus:border-indigo-500"
-                                placeholder="0.0.0.0"
-                            />
-                            {!feedback ? (
-                                <button className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-500 transition-all">Validar</button>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className={`p-4 rounded-xl border ${feedback === 'correct' ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                                        <p className="text-sm">{currentQuestion.explanation}</p>
-                                        {feedback === 'incorrect' && <p className="font-bold mt-2 text-xs uppercase">Correcta: {currentQuestion.correct}</p>}
-                                    </div>
-                                    <button onClick={() => { setFeedback(null); setUserInput(''); setCurrentQuestion(generateQuestion()); }} className="w-full bg-white text-black font-bold py-4 rounded-xl">Siguiente</button>
-                                </div>
-                            )}
-                        </form>
                     </div>
                 </div>
-            );
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = { score: 0, streak: 0, current: {}, answered: false };
+
+        const net = {
+            octet: () => Math.floor(Math.random() * 256),
+            mask: (cidr) => {
+                let m = [];
+                for (let i = 0; i < 4; i++) {
+                    let n = Math.min(cidr, 8);
+                    m.push(256 - Math.pow(2, 8 - n));
+                    cidr -= n;
+                }
+                return m.join('.');
+            },
+            wild: (m) => m.split('.').map(o => 255 - parseInt(o)).join('.')
         };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        function generate() {
+            const types = ['conv', 'sub', 'big', 'cmd'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const cidr = [8, 12, 16, 20, 24, 25, 26, 27, 28, 30][Math.floor(Math.random() * 10)];
+            const mask = net.mask(cidr);
+            const wild = net.wild(mask);
+            const ip = `${net.octet()}.${net.octet()}.${net.octet()}.0`;
+
+            const questions = {
+                conv: { tag: 'Conversión', desc: `Dada la máscara ${mask}, ¿cuál es su wildcard?`, ans: wild, exp: `Inverso binario: 255.255.255.255 - ${mask}` },
+                sub: { tag: 'Subred', desc: `Escribe la wildcard para la subred ${ip}/${cidr}:`, ans: wild, exp: `Para /${cidr}, la máscara es ${mask}.` },
+                big: { tag: 'Bloque', desc: `Wildcard para un bloque de /${cidr-1} (Resumen de dos /${cidr}):`, ans: net.wild(net.mask(cidr-1)), exp: 'Al resumir, se reduce el prefijo y aumenta la wildcard.' },
+                cmd: { tag: 'Comando', desc: `Comando 'network' para la red ${ip} con máscara /24:`, ans: `network ${ip} 0.0.0.255`, exp: 'Sintaxis: network [Dirección] [Wildcard]' }
+            };
+
+            state.current = questions[type];
+            state.answered = false;
+            
+            document.getElementById('tag').innerText = state.current.tag;
+            document.getElementById('description').innerText = state.current.desc;
+            document.getElementById('explanation').innerText = state.current.exp;
+            document.getElementById('userInput').value = '';
+            document.getElementById('userInput').disabled = false;
+            document.getElementById('feedbackBox').classList.add('hidden');
+            document.getElementById('actionBtn').innerHTML = '<i data-lucide="target" class="w-6 h-6"></i> Validar Configuración';
+            lucide.createIcons();
+        }
+
+        function validate() {
+            const input = document.getElementById('userInput').value.trim().toLowerCase();
+            const correct = state.current.ans.toLowerCase();
+            const isCorrect = input === correct;
+
+            state.answered = true;
+            document.getElementById('userInput').disabled = true;
+            document.getElementById('feedbackBox').classList.remove('hidden');
+            
+            if (isCorrect) {
+                state.score++; state.streak++;
+                setFeedback('bg-green-500/5 border-green-500/20 text-green-400', 'check-circle', false);
+            } else {
+                state.streak = 0;
+                setFeedback('bg-red-500/5 border-red-500/20 text-red-400', 'x-circle', true);
+            }
+
+            document.getElementById('score').innerText = state.score;
+            document.getElementById('streak').innerText = `${state.streak}🔥`;
+            document.getElementById('actionBtn').innerHTML = '<i data-lucide="refresh-cw" class="w-6 h-6"></i> Siguiente Reto';
+            lucide.createIcons();
+        }
+
+        function setFeedback(theme, icon, showCorrect) {
+            document.getElementById('feedbackTheme').className = `p-6 rounded-3xl border-2 ${theme}`;
+            document.getElementById('feedbackIcon').setAttribute('data-lucide', icon);
+            const container = document.getElementById('correctContainer');
+            if (showCorrect) {
+                container.classList.remove('hidden');
+                document.getElementById('correctValue').innerText = state.current.ans;
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        document.getElementById('actionBtn').onclick = () => state.answered ? generate() : validate();
+        document.getElementById('userInput').onkeypress = (e) => { if(e.key === 'Enter') state.answered ? generate() : validate(); };
+
+        generate();
     </script>
 </body>
 </html>
