@@ -1,0 +1,236 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { CheckCircle, XCircle, RefreshCw, Trophy, Target, Zap, Network, ShieldCheck, Binary } from 'lucide-react';
+
+const App = () => {
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [userInput, setUserInput] = useState('');
+  const [feedback, setFeedback] = useState(null);
+  const [score, setScore] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [totalAnswered, setTotalAnswered] = useState(0);
+
+  // Funciones de utilidad mejoradas
+  const getRandomOctet = () => Math.floor(Math.random() * 256);
+  
+  const cidrToMask = (cidr) => {
+    let mask = [];
+    for (let i = 0; i < 4; i++) {
+      let n = Math.min(cidr, 8);
+      mask.push(256 - Math.pow(2, 8 - n));
+      cidr -= n;
+    }
+    return mask.join('.');
+  };
+
+  const maskToWildcard = (mask) => {
+    return mask.split('.').map(octet => 255 - parseInt(octet)).join('.');
+  };
+
+  const generateQuestion = useCallback(() => {
+    const types = ['conversion', 'subnet_match', 'variable_octet', 'full_command'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    
+    // Generar CIDR aleatorio que no sea siempre /24 (de /8 a /30)
+    const cidr = [8, 12, 16, 18, 20, 22, 24, 25, 26, 27, 28, 29, 30][Math.floor(Math.random() * 13)];
+    const mask = cidrToMask(cidr);
+    const wildcard = maskToWildcard(mask);
+    
+    // IP base que respete la máscara (red limpia)
+    const ipParts = [getRandomOctet(), getRandomOctet(), getRandomOctet(), getRandomOctet()];
+    const maskParts = mask.split('.').map(Number);
+    const networkParts = ipParts.map((p, i) => p & maskParts[i]);
+    const networkIp = networkParts.join('.');
+
+    switch (type) {
+      case 'conversion':
+        return {
+          title: 'Conversión de Máscara',
+          description: `El router tiene una interfaz en la subred con máscara ${mask}. ¿Qué wildcard debes usar?`,
+          correct: wildcard,
+          explanation: `Resta la máscara a 255.255.255.255. Resultado: ${wildcard}`
+        };
+
+      case 'subnet_match':
+        return {
+          title: 'Match de Subred Específica',
+          description: `Quieres habilitar EIGRP para toda la subred ${networkIp}/${cidr}. Indica solo la wildcard.`,
+          correct: wildcard,
+          explanation: `Para la red /${cidr}, la máscara es ${mask}, por lo que la wildcard es ${wildcard}.`
+        };
+
+      case 'variable_octet':
+        // Forzar un octeto que no sea el 4º para el cálculo
+        const octetIndex = Math.floor(Math.random() * 3); // Octetos 0, 1 o 2
+        const blockSizes = [1, 3, 7, 15, 31, 63];
+        const val = blockSizes[Math.floor(Math.random() * blockSizes.length)];
+        let customWild = [0, 0, 0, 0];
+        customWild[octetIndex] = val;
+        for(let i = octetIndex + 1; i < 4; i++) customWild[i] = 255;
+        
+        const finalWild = customWild.join('.');
+        return {
+          title: 'Cálculo de Bloques Grandes',
+          description: `Necesitas una wildcard que cubra un bloque de ${val + 1} redes en el ${octetIndex + 1}º octeto (y todo lo que cuelgue de ellas).`,
+          correct: finalWild,
+          explanation: `Al afectar al octeto ${octetIndex + 1}, los octetos siguientes deben ser 255. El valor es ${val}. Wildcard: ${finalWild}`
+        };
+
+      case 'full_command':
+        return {
+          title: 'Sintaxis de Comando',
+          description: `Configura el comando 'network' para la red ${networkIp} que cubra exactamente su máscara /${cidr}.`,
+          correct: `network ${networkIp} ${wildcard}`,
+          explanation: `El comando completo requiere la IP de red ${networkIp} seguida de su wildcard ${wildcard}.`
+        };
+
+      default:
+        return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    setCurrentQuestion(generateQuestion());
+  }, [generateQuestion]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!currentQuestion) return;
+
+    const isCorrect = userInput.trim().toLowerCase() === currentQuestion.correct.toLowerCase();
+    
+    if (isCorrect) {
+      setFeedback('correct');
+      setScore(s => s + 1);
+      setStreak(s => s + 1);
+    } else {
+      setFeedback('incorrect');
+      setStreak(0);
+    }
+    setTotalAnswered(t => t + 1);
+  };
+
+  const handleNext = () => {
+    setFeedback(null);
+    setUserInput('');
+    setCurrentQuestion(generateQuestion());
+  };
+
+  if (!currentQuestion) return null;
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans flex flex-col items-center">
+      <div className="w-full max-w-2xl">
+        {/* Header con Stats */}
+        <div className="flex flex-wrap items-center justify-between mb-8 gap-4 bg-slate-900 p-5 rounded-3xl border border-slate-800 shadow-2xl">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-900/40">
+              <Binary size={28} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-white tracking-tight">Wildcard GYM</h1>
+              <p className="text-slate-500 text-[10px] uppercase tracking-widest font-bold">Ejercicios para Network Engineering</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-6">
+            <div className="text-center">
+              <p className="text-[10px] text-slate-500 uppercase font-black mb-1">Puntos</p>
+              <p className="text-2xl font-mono text-indigo-400 font-bold">{score}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-slate-500 uppercase font-black mb-1">Racha</p>
+              <p className="text-2xl font-mono text-orange-500 font-bold">{streak}🔥</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Card Principal */}
+        <div className="bg-slate-900 rounded-[2.5rem] p-8 border border-slate-800 shadow-2xl relative overflow-hidden transition-all">
+          <div className="absolute -top-12 -right-12 p-4 opacity-[0.03] text-white">
+             <Network size={240} />
+          </div>
+
+          <div className="relative z-10">
+            <div className="mb-6">
+              <span className="bg-indigo-500/10 text-indigo-400 text-xs font-black px-3 py-1.5 rounded-xl border border-indigo-500/20 uppercase tracking-wider">
+                {currentQuestion.title}
+              </span>
+            </div>
+
+            <h2 className="text-2xl md:text-3xl font-bold mb-8 leading-tight text-white">
+              {currentQuestion.description}
+            </h2>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="relative group">
+                <input
+                  type="text"
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  disabled={feedback !== null}
+                  placeholder="0.0.0.0"
+                  className="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl p-6 font-mono text-2xl text-indigo-400 focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-800 shadow-2xl"
+                  autoFocus
+                />
+                {feedback === 'correct' && (
+                  <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2 text-green-500 animate-in zoom-in">
+                    <span className="font-black text-sm uppercase">Perfecto</span>
+                    <CheckCircle size={32} />
+                  </div>
+                )}
+                {feedback === 'incorrect' && (
+                  <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2 text-red-500 animate-in zoom-in">
+                    <span className="font-black text-sm uppercase">Fallo</span>
+                    <XCircle size={32} />
+                  </div>
+                )}
+              </div>
+
+              {!feedback ? (
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-indigo-900/40 flex items-center justify-center gap-3 active:scale-[0.98] text-lg"
+                >
+                  <Target size={24} /> Comprobar
+                </button>
+              ) : (
+                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                  <div className={`p-6 rounded-3xl border-2 ${
+                    feedback === 'correct' ? 'bg-green-500/5 border-green-500/20 text-green-400' : 'bg-red-500/5 border-red-500/20 text-red-400'
+                  }`}>
+                    <p className="font-black uppercase tracking-widest text-xs mb-3 flex items-center gap-2">
+                       {feedback === 'correct' ? <Trophy size={16} /> : <Zap size={16} />}
+                       Análisis 
+                    </p>
+                    <p className="text-slate-300 text-sm leading-relaxed mb-4 font-medium">
+                      {currentQuestion.explanation}
+                    </p>
+                    {feedback === 'incorrect' && (
+                      <div className="bg-slate-950/50 p-4 rounded-xl border border-red-900/20">
+                        <span className="text-[10px] text-slate-500 block mb-1 uppercase font-bold">Configuración correcta:</span>
+                        <code className="text-red-400 font-mono text-lg font-bold">{currentQuestion.correct}</code>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="w-full bg-white hover:bg-slate-100 text-slate-950 font-black py-5 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl active:scale-[0.98] text-lg"
+                  >
+                    Siguiente Reto <RefreshCw size={24} />
+                  </button>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+
+        <p className="mt-10 text-center text-slate-700 text-[10px] uppercase tracking-[0.4em] font-black">
+          SPINNING-TREE
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default App;
